@@ -1,16 +1,21 @@
 package main
 
 import (
+	"database/sql"
 	"flag"
 	"github.com/joho/godotenv"
 	"log"
+	"m4rk1sov/snippetbox/pkg/models/mysql"
 	"net/http"
 	"os"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	snippets *mysql.SnippetModel
 }
 
 // Generally avoid using Panic() and Fatal() outside of main function, better return errors from functions
@@ -40,13 +45,24 @@ func main() {
 		errorLog.Fatalf("missing environmental variable: %s", netAddress)
 	}
 
+	mysqlAddress := os.Getenv("SNIPPETBOX_DB_DSN")
+	dsn := flag.String("dsn", mysqlAddress, "MySQL data source name")
+
 	// This command is responsible for taking command line value and assigning it
 	// to a values for flag, call before usage of variables of flag.
 	flag.Parse()
 
+	db, err := openDB(*dsn)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
+	defer db.Close()
+
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
+		snippets: &mysql.SnippetModel{DB: db},
 	}
 
 	// This http.Server struct uses previous variables and custom errorLog logger
@@ -60,4 +76,15 @@ func main() {
 	infoLog.Printf("Starting the server on %s", *addr)
 	err = srv.ListenAndServe()
 	errorLog.Fatal(err)
+}
+
+func openDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, err
+	}
+	if err = db.Ping(); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
