@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"m4rk1sov/snippetbox/pkg/forms"
 	"m4rk1sov/snippetbox/pkg/models"
 	"net/http"
 	"strconv"
@@ -52,23 +53,29 @@ func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *application) createSnippetForm(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(""))
+	app.render(w, r, "create.page.tmpl", &templateData{
+		Form: forms.New(nil),
+	})
 }
 
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.clientError(w, http.StatusBadRequest)
+		return
+	}
 
-	// Is now obsolete because of new router
-	//if r.Method != http.MethodPost {
-	//	w.Header().Set("Allow", http.MethodPost)
-	//	app.clientError(w, http.StatusMethodNotAllowed)
-	//	return
-	//}
+	form := forms.New(r.PostForm)
+	form.Required("title", "content", "expires")
+	form.MaxLength("title", 100)
+	form.PermittedValues("expires", "365", "7", "1")
 
-	title := "0 snail"
-	content := "0 snail\nClimb Mount Fuji\nBut slowly, slowly!\n\n- Kobayashi Issa"
-	expires := "7"
+	if !form.Valid() {
+		app.render(w, r, "create_page.tmpl", &templateData{Form: form})
+		return
+	}
 
-	id, err := app.snippets.Insert(title, content, expires)
+	id, err := app.snippets.Insert(form.Get("title"), form.Get("content"), form.Get("expires"))
 	if err != nil {
 		app.serverError(w, err)
 		return

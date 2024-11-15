@@ -226,6 +226,7 @@ button:hover {
     background-color: #FFFFFF;
     border: 1px solid #E4E5E7;
     border-radius: 3px;
+    word-break: break-all;
 }
 
 .snippet pre {
