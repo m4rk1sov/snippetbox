@@ -3,12 +3,14 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"github.com/golangcollege/sessions"
 	"github.com/joho/godotenv"
 	"html/template"
 	"log"
 	"m4rk1sov/snippetbox/pkg/models/mysql"
 	"net/http"
 	"os"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -16,6 +18,7 @@ import (
 type application struct {
 	errorLog      *log.Logger
 	infoLog       *log.Logger
+	session       *sessions.Session
 	snippets      *mysql.SnippetModel
 	templateCache map[string]*template.Template
 }
@@ -50,6 +53,10 @@ func main() {
 	mysqlAddress := os.Getenv("SNIPPETBOX_DB_DSN")
 	dsn := flag.String("dsn", mysqlAddress, "MySQL data source name")
 
+	// Secret key, 32 bytes, for authentications of user sessions/cookies
+	secretKey := os.Getenv("SECRET_KEY")
+	secret := flag.String("secret", secretKey, "Secret key")
+
 	// This command is responsible for taking command line value and assigning it
 	// to a values for flag, call before usage of variables of flag.
 	flag.Parse()
@@ -61,14 +68,21 @@ func main() {
 
 	defer db.Close()
 
-	templateCache, err := newTemplateCache("./ui/html/")
+	templateDir := os.Getenv("TEMPLATE_DIR")
+	templateCache, err := newTemplateCache(templateDir)
 	if err != nil {
 		errorLog.Fatal(err)
 	}
 
+	// New session manager, passing key as parameter, we can add different configuration attributes/settings
+	// As an example, here we set the 12-hour expiry time
+	session := sessions.New([]byte(*secret))
+	session.Lifetime = 12 * time.Hour
+
 	app := &application{
 		errorLog:      errorLog,
 		infoLog:       infoLog,
+		session:       session,
 		snippets:      &mysql.SnippetModel{DB: db},
 		templateCache: templateCache,
 	}
