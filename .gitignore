@@ -27,3 +27,7 @@ go.work.sum
 
 # Log files
 *.log
+
+# TLS folder and .pem files
+tls/
+*.pem

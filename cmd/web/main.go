@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"flag"
 	"github.com/golangcollege/sessions"
@@ -87,16 +88,30 @@ func main() {
 		templateCache: templateCache,
 	}
 
+	// Struct for non-default setting we will use for server
+	tlsConfig := &tls.Config{
+		PreferServerCipherSuites: true,
+		CurvePreferences:         []tls.CurveID{tls.X25519, tls.CurveP256},
+	}
+
 	// This http.Server struct uses previous variables and custom errorLog logger
 	srv := &http.Server{
-		Addr:     *addr,
-		ErrorLog: errorLog,
-		Handler:  app.routes(),
+		Addr:         *addr,
+		ErrorLog:     errorLog,
+		Handler:      app.routes(),
+		TLSConfig:    tlsConfig,
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
 	// Returning the address of addr variable
 	infoLog.Printf("Starting the server on %s", *addr)
-	err = srv.ListenAndServe()
+
+	// Reading the TLS keys
+	publicKey := os.Getenv("PUBLIC_KEY")
+	privateKey := os.Getenv("PRIVATE_KEY")
+	err = srv.ListenAndServeTLS(publicKey, privateKey)
 	errorLog.Fatal(err)
 }
 
